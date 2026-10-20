@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Planeta Diego · Centro de juegos</title>
+<meta name="description" content="Lobby explorable con todos mis juegos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0918;
+    --floor-a: #191530;
+    --floor-b: #1e1a3a;
+    --wall: #241d47;
+    --ink: #f4f0ff;
+    --muted: #a8a1cc;
+    --accent: #ffd34d;
+    --panel: rgba(18, 14, 38, .92);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background:
+      radial-gradient(1px 1px at 20% 30%, #fff8 50%, transparent 51%) 0 0 / 120px 120px,
+      radial-gradient(1px 1px at 70% 80%, #fff5 50%, transparent 51%) 0 0 / 170px 170px,
+      var(--bg);
+    color: var(--ink);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
+  button { font: inherit; color: inherit; }
+
+  /* ---------- mundo ---------- */
+  #viewport { position: fixed; inset: 0; overflow: hidden; touch-action: none; cursor: pointer; }
+  #world {
+    position: absolute; left: 0; top: 0; transform-origin: 0 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 100%, rgba(255, 211, 77, .08), transparent 70%),
+      repeating-conic-gradient(var(--floor-a) 0 25%, var(--floor-b) 0 50%) 0 0 / 96px 96px;
+    border-radius: 28px;
+    box-shadow: 0 0 0 8px #2c2456, 0 0 0 16px #120e26, 0 40px 120px rgba(0,0,0,.7);
+  }
+  .wall {
+    position: absolute; left: 0; right: 0; top: 0; height: 230px;
+    border-radius: 28px 28px 0 0;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 118px, rgba(0,0,0,.18) 118px 120px),
+      linear-gradient(#1a1536, var(--wall));
+    border-bottom: 10px solid #3a2f6e;
+  }
+  .sign {
+    position: absolute; left: 50%; top: 46px; transform: translateX(-50%);
+    text-align: center; white-space: nowrap; pointer-events: none;
+  }
+  .sign h1 {
+    margin: 0; font-family: 'Silkscreen', monospace; font-weight: 700;
+    font-size: 64px; letter-spacing: 4px; line-height: 1;
+    color: #ffe9ff;
+    text-shadow: 0 0 6px #ff5ac8, 0 0 18px #ff5ac8, 0 0 42px #ff2fae;
+    animation: flicker 6s infinite;
+  }
+  .sign p {
+    margin: 14px 0 0; font-family: 'Silkscreen', monospace; font-size: 18px;
+    letter-spacing: 3px; color: #9ff0ff; text-shadow: 0 0 10px #39d5ff;
+  }
+  @keyframes flicker {
+    0%, 92%, 100% { opacity: 1; }
+    93% { opacity: .55; } 94% { opacity: 1; } 96% { opacity: .7; }
+  }
+
+  .decor { position: absolute; pointer-events: none; transform: translate(-50%, -100%); }
+  .mat {
+    position: absolute; transform: translate(-50%, -50%); pointer-events: none;
+    width: 220px; height: 70px; border-radius: 14px;
+    border: 3px dashed rgba(255, 211, 77, .45);
+    display: grid; place-items: center;
+    font-family: 'Silkscreen', monospace; font-size: 18px; letter-spacing: 4px;
+    color: rgba(255, 211, 77, .6);
+  }
+
+  /* ---------- estaciones (un juego cada una) ---------- */
+  .station {
+    position: absolute; width: 200px; height: 230px;
+    transform: translate(-50%, -78%);
+    background: none; border: 0; padding: 0; cursor: pointer;
+    outline: none;
+  }
+  .station .pedestal {
+    position: absolute; left: 50%; bottom: 40px; width: 170px; height: 48px;
+    transform: translateX(-50%); border-radius: 50%;
+    background: radial-gradient(ellipse at center, color-mix(in srgb, var(--c) 45%, transparent), transparent 70%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 60%, transparent) inset;
+    transition: box-shadow .25s, background .25s;
+  }
+  .station .prop {
+    position: absolute; left: 50%; bottom: 52px; width: 170px; height: 170px;
+    transform: translateX(-50%);
+    transition: transform .25s cubic-bezier(.3, 1.6, .5, 1), filter .25s;
+    filter: drop-shadow(0 6px 0 rgba(0,0,0,.35));
+  }
+  .station .prop svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .station .plate {
+    position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+    white-space: nowrap; padding: 6px 12px; border-radius: 8px;
+    font-family: 'Silkscreen', monospace; font-size: 15px; letter-spacing: 1px;
+    background: #120e26; border: 2px solid color-mix(in srgb, var(--c) 70%, #000);
+    color: var(--ink);
+  }
+  .station .key {
+    position: absolute; left: 50%; top: -6px; transform: translate(-50%, 8px) scale(.6);
+    opacity: 0; transition: .2s;
+    font-family: 'Silkscreen', monospace; font-size: 16px; color: #120e26;
+    background: var(--accent); border-radius: 6px; padding: 3px 9px;
+    box-shadow: 0 4px 0 #a07a00;
+  }
+  .station.near .prop, .station:focus-visible .prop {
+    transform: translateX(-50%) translateY(-10px) scale(1.06);
+    filter: drop-shadow(0 16px 0 rgba(0,0,0,.3)) drop-shadow(0 0 22px color-mix(in srgb, var(--c) 70%, transparent));
+  }
+  .station.near .pedestal, .station:focus-visible .pedestal {
+    box-shadow: 0 0 0 3px var(--c) inset, 0 0 40px var(--c);
+  }
+  .station.near .key { opacity: 1; transform: translate(-50%, 0) scale(1); animation: bob 1s ease-in-out infinite; }
+  .station:focus-visible .plate { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .station.soon { cursor: default; }
+  .station.soon .prop { opacity: .75; }
+  @keyframes bob { 50% { transform: translate(-50%, -5px) scale(1); } }
+
+  /* ---------- jugador ---------- */
+  .player {
+    position: absolute; width: 56px; height: 76px;
+    transform: translate(-50%, -92%); pointer-events: none;
+  }
+  .player svg { width: 100%; height: 100%; overflow: visible; }
+  .player .flip { transform-origin: 28px 0; transition: transform .12s; }
+  .player.left .flip { transform: scaleX(-1); }
+  .player .body { transform-origin: 28px 76px; }
+  .player.walking .body { animation: step .32s steps(2) infinite; }
+  .player.walking .legL { animation: legA .32s steps(2) infinite; }
+  .player.walking .legR { animation: legB .32s steps(2) infinite; }
+  @keyframes step { 50% { transform: translateY(-3px); } }
+  @keyframes legA { 50% { transform: translateY(-4px); } }
+  @keyframes legB { 0% { transform: translateY(-4px); } 50% { transform: none; } }
+
+  .ping {
+    position: absolute; width: 34px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--accent); transform: translate(-50%, -50%);
+    pointer-events: none; animation: ping .5s ease-out forwards;
+  }
+  @keyframes ping { from { opacity: 1; scale: .4; } to { opacity: 0; scale: 1.6; } }
+
+  /* ---------- HUD ---------- */
+  .hud-top {
+    position: fixed; top: max(14px, env(safe-area-inset-top)); right: 16px; left: 16px;
+    display: flex; justify-content: flex-end; pointer-events: none;
+  }
+  .btn {
+    pointer-events: auto; cursor: pointer;
+    font-family: 'Silkscreen', monospace; font-size: 14px; letter-spacing: 1px;
+    padding: 10px 14px; border-radius: 10px;
+    background: var(--panel); border: 2px solid #3a2f6e; color: var(--ink);
+  }
+  .btn:hover, .btn:focus-visible { border-color: var(--accent); outline: none; }
+
+  .help {
+    position: fixed; left: 16px; bottom: max(16px, env(safe-area-inset-bottom));
+    font-size: 13px; color: var(--muted); background: var(--panel);
+    padding: 10px 14px; border-radius: 10px; border: 1px solid #2c2456;
+    max-width: calc(100vw - 32px); pointer-events: none;
+    transition: opacity .3s;
+  }
+  .help kbd {
+    font-family: 'Silkscreen', monospace; font-size: 11px; color: var(--ink);
+    background: #2c2456; border-radius: 4px; padding: 1px 5px;
+  }
+
+  .card {
+    position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom));
+    width: min(460px, calc(100vw - 32px));
+    transform: translate(-50%, 140%); transition: transform .3s cubic-bezier(.3, 1.4, .5, 1);
+    background: var(--panel); backdrop-filter: blur(8px);
+    border: 2px solid var(--c, #3a2f6e); border-radius: 16px;
+    box-shadow: 0 0 40px color-mix(in srgb, var(--c, #000) 35%, transparent), 0 20px 50px rgba(0,0,0,.5);
+    padding: 16px 18px; display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-items: center;
+  }
+  .card.show { transform: translate(-50%, 0); }
+  .card h2 { margin: 0; font-family: 'Silkscreen', monospace; font-size: 22px; letter-spacing: 1px; color: var(--c, var(--ink)); }
+  .card p { margin: 0; grid-column: 1; color: var(--muted); font-size: 15px; line-height: 1.35; }
+  .card .play {
+    grid-column: 2; grid-row: 1 / span 2;
+    font-family: 'Silkscreen', monospace; font-size: 16px; cursor: pointer;
+    padding: 12px 16px; border-radius: 10px; border: 0;
+    background: var(--accent); color: #1a1300; box-shadow: 0 4px 0 #a07a00;
+  }
+  .card .play:active { transform: translateY(3px); box-shadow: 0 1px 0 #a07a00; }
+  .card .play:disabled { background: #3a2f6e; color: var(--muted); box-shadow: none; cursor: default; }
+  body.card-open .help { opacity: 0; }
+
+  dialog {
+    background: var(--panel); color: var(--ink); border: 2px solid #3a2f6e; border-radius: 16px;
+    padding: 20px; width: min(420px, calc(100vw - 32px));
+  }
+  dialog::backdrop { background: rgba(5, 3, 15, .7); }
+  dialog h2 { margin: 0 0 12px; font-family: 'Silkscreen', monospace; font-size: 20px; }
+  dialog ul { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
+  dialog a {
+    display: block; padding: 10px 12px; border-radius: 10px; text-decoration: none; color: var(--ink);
+    border: 1px solid #2c2456; border-left: 6px solid var(--c);
+  }
+  dialog a:hover, dialog a:focus-visible { background: #241d47; outline: none; }
+  dialog a small { display: block; color: var(--muted); }
+
+  #iris {
+    position: fixed; inset: 0; background: #000; pointer-events: none;
+    -webkit-mask: radial-gradient(circle at var(--ix) var(--iy), transparent var(--r, 150vmax), #000 calc(var(--r, 150vmax) + 1px));
+            mask: radial-gradient(circle at var(--ix) var(--iy), transparent var(--r, 150vmax), #000 calc(var(--r, 150vmax) + 1px));
+    opacity: 0;
+  }
+  #iris.closing { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="viewport" aria-label="Planeta Diego, centro de juegos. Usa las flechas o haz clic para moverte.">
+  <div id="world"></div>
+</div>
+
+<div class="hud-top">
+  <button class="btn" id="listBtn" aria-haspopup="dialog">≡ Juegos</button>
+</div>
+
+<div class="help" id="help"></div>
+
+<section class="card" id="card" aria-live="polite">
+  <h2 id="cardTitle"></h2>
+  <p id="cardText"></p>
+  <button class="play" id="playBtn">Jugar ▶</button>
+</section>
+
+<dialog id="list">
+  <h2>Todos los juegos</h2>
+  <ul id="listItems"></ul>
+  <button class="btn" id="closeList">Cerrar</button>
+</dialog>
+
+<div id="iris"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN — para añadir un juego nuevo, añade un objeto a GAMES.
+   - url:   dónde está el juego (ruta relativa o URL completa)
+   - prop:  'city' | 'car' | 'fiestective' | 'arcade' (máquina arcade genérica)
+            o 'image' + image:'ruta/a/tu-dibujo.png' para usar tu propio dibujo
+   - color: color de neón de su pedestal
+   ===================================================================== */
+const OWNER = 'Diego';
+const GAMES = [
+  { id: 'little-transit', title: 'Little Transit', tagline: 'Diseña el transporte de ciudades de verdad, sin prisas.', url: 'https://diegomaartinez.github.io/city-game/', prop: 'city', color: '#39d5ff' },
+  { id: 'fiestective',    title: 'Fiestective',    tagline: 'Juegos de misterio para fiestas, con vuestros nombres.', url: 'https://fiestective.com/', prop: 'fiestective', color: '#ff5ac8' },
+  { id: 'little-drives',  title: 'Little Drives',  tagline: 'Contrarreloj de coches: derrapa y bate a tu fantasma.', url: 'https://littledrives.com/', prop: 'car', color: '#ff6a3d' },
+  // { id: 'nuevo', title: 'Mi nuevo juego', tagline: '...', url: '../nuevo/', prop: 'arcade', color: '#7dff8a' },
+];
+const SHOW_COMING_SOON = true;   // pedestal "Próximamente" al final
+
+/* ---------------- dibujos de cada juego (SVG 160x160) ---------------- */
+const PROPS = {
+  car: (c) => `
+    <svg viewBox="0 0 160 160" aria-hidden="true">
+      <rect x="6" y="112" width="148" height="30" rx="6" fill="#2b2846"/>
+      <g fill="#ffd34d">${[16, 48, 80, 112, 144].map(x => `<rect x="${x - 8}" y="125" width="16" height="4" rx="2"/>`).join('')}</g>
+      <path d="M20 112 V96 Q22 86 34 84 L52 82 L66 64 Q70 59 79 59 H108 Q117 59 121 66 L131 82 L141 86 Q148 88 148 97 V112 Z" fill="${c}"/>
+      <path d="M20 104 H148 V112 H20 Z" fill="#000" opacity=".2"/>
+      <path d="M58 82 L70 67 Q72 65 76 65 H92 V82 Z" fill="#c9f1ff"/>
+      <path d="M97 65 H107 Q112 65 115 70 L123 82 H97 Z" fill="#c9f1ff"/>
+      <rect x="94" y="64" width="3" height="18" fill="${c}"/>
+      <rect x="138" y="90" width="10" height="7" rx="2" fill="#fff6b0"/>
+      <path d="M148 90 L178 82 V106 L148 97 Z" fill="#fff6b0" opacity=".25"/>
+      <rect x="20" y="92" width="6" height="6" rx="1" fill="#ff3b3b"/>
+      <circle cx="48" cy="112" r="15" fill="#111"/><circle cx="48" cy="112" r="6" fill="#bbb"/>
+      <circle cx="120" cy="112" r="15" fill="#111"/><circle cx="120" cy="112" r="6" fill="#bbb"/>
+      <text x="74" y="101" font-family="Silkscreen,monospace" font-size="12" fill="#fff" opacity=".9">07</text>
+    </svg>`,
+
+  city: (c) => {
+    const blds = [[14, 66, 42, 76, '#3a2f6e'], [58, 26, 46, 116, '#2c2456'], [106, 80, 40, 62, '#463a85']];
+    let win = '';
+    let n = 0;
+    blds.forEach(([x, y, w, h]) => {
+      for (let yy = y + 10; yy < y + h - 12; yy += 14)
+        for (let xx = x + 7; xx < x + w - 8; xx += 12) {
+          n++;
+          const lit = (n * 7) % 5 !== 0;
+          win += `<rect x="${xx}" y="${yy}" width="6" height="8" rx="1" fill="${lit ? '#ffe27a' : '#1b1733'}"/>`;
+        }
+    });
+    return `
+    <svg viewBox="0 0 160 160" aria-hidden="true">
+      <circle cx="132" cy="28" r="12" fill="#fff4c9" opacity=".9"/>
+      <circle cx="137" cy="24" r="10" fill="#0b0918" opacity=".0"/>
+      ${blds.map(([x, y, w, h, f]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}" stroke="${c}" stroke-width="2"/>`).join('')}
+      <rect x="79" y="8" width="3" height="18" fill="${c}"/><circle cx="80.5" cy="8" r="3" fill="#ff3b3b"/>
+      ${win}
+      <rect x="4" y="142" width="152" height="6" rx="3" fill="${c}" opacity=".7"/>
+    </svg>`;
+  },
+
+  fiestective: (c) => `
+    <svg viewBox="0 0 160 160" aria-hidden="true">
+      <line x1="62" y1="0" x2="62" y2="18" stroke="#8a84b0" stroke-width="2"/>
+      <circle cx="62" cy="38" r="20" fill="#cfd3e6"/>
+      <g stroke="#8a90ad" stroke-width="1.5" fill="none">
+        <path d="M42 38 H82 M45 28 H79 M45 48 H79 M62 18 V58"/>
+        <ellipse cx="62" cy="38" rx="9" ry="20"/>
+      </g>
+      <circle cx="56" cy="31" r="4" fill="#fff"/>
+      <g opacity=".9">
+        <rect x="16" y="66" width="7" height="4" fill="#ffd34d" transform="rotate(30 19 68)"/>
+        <rect x="128" y="40" width="7" height="4" fill="#39d5ff" transform="rotate(-20 131 42)"/>
+        <rect x="140" y="92" width="7" height="4" fill="#7dff8a" transform="rotate(50 143 94)"/>
+        <rect x="24" y="120" width="7" height="4" fill="${c}" transform="rotate(-40 27 122)"/>
+        <rect x="104" y="20" width="7" height="4" fill="#ffd34d" transform="rotate(10 107 22)"/>
+        <circle cx="146" cy="130" r="3" fill="#ffd34d"/><circle cx="12" cy="94" r="3" fill="#39d5ff"/>
+      </g>
+      <path d="M100 52 L120 94 H80 Z" fill="${c}"/>
+      <path d="M92 69 L108 69 M86 82 L114 82" stroke="#ffd34d" stroke-width="4"/>
+      <circle cx="100" cy="51" r="5" fill="#ffd34d"/>
+      <line x1="74" y1="114" x2="104" y2="146" stroke="#6b4a2b" stroke-width="11" stroke-linecap="round"/>
+      <circle cx="58" cy="96" r="27" fill="rgba(201,241,255,.25)" stroke="#d8b26a" stroke-width="8"/>
+      <path d="M44 86 Q50 78 60 77" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" opacity=".8"/>
+      <text x="51" y="106" font-family="Silkscreen,monospace" font-size="26" fill="#fff">?</text>
+    </svg>`,
+
+  arcade: (c, g) => {
+    const initials = g.title.split(/\s+/).map(w => w[0]).join('').slice(0, 3).toUpperCase();
+    return `
+    <svg viewBox="0 0 160 160" aria-hidden="true">
+      <path d="M44 10 H116 L120 40 L112 70 V150 H48 V70 L40 40 Z" fill="#2c2456" stroke="${c}" stroke-width="3"/>
+      <rect x="50" y="14" width="60" height="16" rx="3" fill="${c}"/>
+      <rect x="54" y="40" width="52" height="40" rx="4" fill="#0b0918" stroke="${c}" stroke-width="2"/>
+      <text x="80" y="66" text-anchor="middle" font-family="Silkscreen,monospace" font-size="16" fill="${c}">${initials}</text>
+      <rect x="48" y="88" width="64" height="16" fill="#3a2f6e"/>
+      <circle cx="64" cy="94" r="5" fill="#ff3b3b"/><circle cx="84" cy="96" r="4" fill="#ffd34d"/><circle cx="96" cy="96" r="4" fill="#39d5ff"/>
+      <rect x="70" y="120" width="20" height="10" rx="2" fill="#0b0918"/>
+    </svg>`;
+  },
+
+  image: (c, g) => `<img src="${g.image}" alt="" style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated">`,
+
+  soon: () => `
+    <svg viewBox="0 0 160 160" aria-hidden="true">
+      <rect x="40" y="58" width="80" height="80" rx="6" fill="#2c2456" stroke="#8a84b0" stroke-width="3" stroke-dasharray="8 6"/>
+      <path d="M40 78 H120 M40 118 H120" stroke="#8a84b0" stroke-width="2" opacity=".5"/>
+      <text x="80" y="114" text-anchor="middle" font-family="Silkscreen,monospace" font-size="48" fill="#ffd34d">?</text>
+      <text x="80" y="44" text-anchor="middle" font-family="Silkscreen,monospace" font-size="11" fill="#8a84b0">EN OBRAS</text>
+    </svg>`,
+};
+
+const PLANT = `<svg width="60" height="90" viewBox="0 0 60 90" aria-hidden="true">
+  <path d="M30 60 Q8 40 14 14 Q28 30 30 60 Q34 24 48 8 Q54 40 30 60" fill="#3fbf7f"/>
+  <path d="M30 60 Q20 30 30 4 Q40 30 30 60" fill="#5ee0a0"/>
+  <path d="M14 58 H46 L42 88 H18 Z" fill="#a0522d"/><rect x="12" y="56" width="36" height="7" rx="2" fill="#c56a3c"/></svg>`;
+const LAMP = (c) => `<svg width="40" height="140" viewBox="0 0 40 140" aria-hidden="true">
+  <circle cx="20" cy="18" r="30" fill="${c}" opacity=".12"/>
+  <rect x="17" y="24" width="6" height="110" fill="#3a2f6e"/><rect x="8" y="130" width="24" height="8" rx="3" fill="#2c2456"/>
+  <circle cx="20" cy="18" r="11" fill="${c}"/><circle cx="16" cy="14" r="4" fill="#fff" opacity=".7"/></svg>`;
+
+const PLAYER_SVG = `
+  <svg viewBox="0 0 56 76" aria-hidden="true">
+    <ellipse cx="28" cy="74" rx="18" ry="4" fill="rgba(0,0,0,.4)"/>
+    <g class="flip">
+      <rect class="legL" x="17" y="56" width="8" height="16" rx="3" fill="#2a2550"/>
+      <rect class="legR" x="31" y="56" width="8" height="16" rx="3" fill="#2a2550"/>
+      <g class="body">
+        <rect x="12" y="32" width="32" height="28" rx="9" fill="#ffd34d"/>
+        <rect x="22" y="42" width="12" height="7" rx="3" fill="#e0b52e"/>
+        <circle cx="28" cy="22" r="15" fill="#f2c7a0"/>
+        <path d="M13 20 Q14 5 30 6 Q44 7 43 20 Q36 12 26 15 Q18 17 13 20 Z" fill="#3a2418"/>
+        <rect x="33" y="19" width="4" height="6" rx="2" fill="#1b1733"/>
+        <rect x="24" y="19" width="4" height="6" rx="2" fill="#1b1733"/>
+        <path d="M28 30 Q32 32 35 29" stroke="#a5583a" stroke-width="2" fill="none" stroke-linecap="round"/>
+      </g>
+    </g>
+  </svg>`;
+
+/* ---------------- construcción del mundo ---------------- */
+const $ = (s) => document.querySelector(s);
+const viewport = $('#viewport'), world = $('#world');
+const card = $('#card'), playBtn = $('#playBtn');
+
+const slots = GAMES.map(g => ({ ...g }));
+if (SHOW_COMING_SOON) slots.push({ id: 'soon', title: 'Próximamente', tagline: 'El siguiente juego está en el horno.', prop: 'soon', color: '#8a84b0', soon: true });
+
+const COLS = 3, SX = 380, SY = 340, MX = 320, TOP = 470, WALL = 230;
+const rows = Math.ceil(slots.length / COLS);
+const W = MX * 2 + SX * (COLS - 1);
+const H = TOP + SY * (rows - 1) + 360;
+world.style.width = W + 'px';
+world.style.height = H + 'px';
+
+world.insertAdjacentHTML('beforeend', `
+  <div class="wall"></div>
+  <div class="sign"><h1>PLANETA ${OWNER.toUpperCase()}</h1><p>centro de juegos</p></div>
+  <div class="mat" style="left:${W / 2}px; top:${H - 110}px">START</div>
+`);
+[[70, WALL + 110, PLANT], [W - 70, WALL + 110, PLANT], [70, H - 40, LAMP('#39d5ff')], [W - 70, H - 40, LAMP('#ff5ac8')]]
+  .forEach(([x, y, svg]) => world.insertAdjacentHTML('beforeend', `<div class="decor" style="left:${x}px;top:${y}px;z-index:${y | 0}">${svg}</div>`));
+
+slots.forEach((g, i) => {
+  const r = Math.floor(i / COLS), c = i % COLS;
+  const inRow = Math.min(COLS, slots.length - r * COLS);
+  g.x = MX + (COLS - inRow) * SX / 2 + c * SX;
+  g.y = TOP + r * SY;
+  const el = document.createElement('button');
+  el.className = 'station' + (g.soon ? ' soon' : '');
+  el.style.cssText = `left:${g.x}px; top:${g.y}px; --c:${g.color}; z-index:${g.y | 0}`;
+  el.setAttribute('aria-label', g.soon ? 'Próximamente' : `${g.title}: ${g.tagline}`);
+  el.innerHTML = `
+    <span class="pedestal"></span>
+    <span class="prop">${(PROPS[g.prop] || PROPS.arcade)(g.color, g)}</span>
+    <span class="key">E</span>
+    <span class="plate">${g.title}</span>`;
+  el.addEventListener('click', (e) => { e.stopPropagation(); walkTo(g.x, g.y + 100, g); });
+  el.addEventListener('dblclick', (e) => { e.stopPropagation(); enter(g); });
+  world.appendChild(el);
+  g.el = el;
+});
+
+const player = { x: W / 2, y: H - 110, el: document.createElement('div') };
+player.el.className = 'player';
+player.el.innerHTML = PLAYER_SVG;
+world.appendChild(player.el);
+
+/* ---------------- controles ---------------- */
+const isTouch = matchMedia('(pointer: coarse)').matches;
+$('#help').innerHTML = isTouch
+  ? 'Toca el suelo para caminar · toca un juego para acercarte'
+  : 'Muévete con <kbd>WASD</kbd> / <kbd>↑↓←→</kbd> o haz clic · <kbd>E</kbd> para entrar';
+
+const MOVE_KEYS = { arrowup: [0, -1], w: [0, -1], arrowdown: [0, 1], s: [0, 1], arrowleft: [-1, 0], a: [-1, 0], arrowright: [1, 0], d: [1, 0] };
+const keys = new Set();
+let target = null, near = null, entering = false;
+
+addEventListener('keydown', (e) => {
+  if ($('#list').open) return;
+  const k = e.key.toLowerCase();
+  if (MOVE_KEYS[k]) { keys.add(k); target = null; e.preventDefault(); return; }
+  if ((k === 'e' || (k === 'enter' && !e.target.closest('button'))) && near) { e.preventDefault(); enter(near); }
+});
+addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+addEventListener('blur', () => keys.clear());
+
+viewport.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('.station')) return;
+  const p = toWorld(e.clientX, e.clientY);
+  walkTo(p.x, p.y);
+  const ping = document.createElement('div');
+  ping.className = 'ping';
+  ping.style.cssText = `left:${p.x}px; top:${p.y}px; z-index:1`;
+  world.appendChild(ping);
+  setTimeout(() => ping.remove(), 500);
+});
+
+function walkTo(x, y) { target = { x, y }; }
+
+playBtn.addEventListener('click', () => near && enter(near));
+
+/* ---------------- entrar a un juego ---------------- */
+function enter(g) {
+  if (entering || g.soon || !g.url) return;
+  entering = true;
+  const iris = $('#iris');
+  const rect = player.el.getBoundingClientRect();
+  iris.style.setProperty('--ix', rect.left + rect.width / 2 + 'px');
+  iris.style.setProperty('--iy', rect.top + rect.height / 2 + 'px');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) { location.href = g.url; return; }
+  iris.classList.add('closing');
+  const start = performance.now(), from = Math.hypot(innerWidth, innerHeight);
+  (function shrink(t) {
+    const k = Math.min(1, (t - start) / 550);
+    iris.style.setProperty('--r', (from * (1 - k * k)) + 'px');
+    if (k < 1) requestAnimationFrame(shrink);
+    else location.href = g.url;
+  })(start);
+}
+// si el usuario vuelve con el botón "atrás", reabrimos el iris
+addEventListener('pageshow', (e) => {
+  if (e.persisted) { entering = false; $('#iris').classList.remove('closing'); $('#iris').style.setProperty('--r', '150vmax'); }
+});
+
+/* ---------------- lista accesible ---------------- */
+$('#listItems').innerHTML = GAMES.map(g =>
+  `<li><a href="${g.url}" style="--c:${g.color}">${g.title}<small>${g.tagline}</small></a></li>`).join('');
+$('#listBtn').addEventListener('click', () => { keys.clear(); $('#list').showModal(); });
+$('#closeList').addEventListener('click', () => $('#list').close());
+
+/* ---------------- cámara ---------------- */
+let scale = 1, camX = 0, camY = 0, camReady = false;
+function camTarget() {
+  const vw = innerWidth, vh = innerHeight;
+  // en pantallas grandes cabe todo el lobby; en móvil la cámara sigue al jugador
+  scale = Math.max(0.5, Math.min(1, vw / (W + 80), vh / (H + 80)));
+  const ww = W * scale, wh = H * scale;
+  const pad = 40;
+  const tx = ww <= vw ? -(vw - ww) / 2 : clamp(player.x * scale - vw / 2, -pad, ww - vw + pad);
+  const ty = wh <= vh ? -(vh - wh) / 2 : clamp(player.y * scale - vh * 0.55, -pad, wh - vh + pad + 90);
+  return { tx, ty };
+}
+function toWorld(cx, cy) { return { x: (cx + camX) / scale, y: (cy + camY) / scale }; }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* ---------------- bucle principal ---------------- */
+const SPEED = 320, NEAR_R = 135, BODY_R = 78;
+let last = performance.now();
+function tick(t) {
+  const dt = Math.min(0.05, (t - last) / 1000); last = t;
+  let dx = 0, dy = 0;
+  keys.forEach(k => { dx += MOVE_KEYS[k][0]; dy += MOVE_KEYS[k][1]; });
+  if (dx || dy) {
+    const l = Math.hypot(dx, dy); dx /= l; dy /= l;
+  } else if (target) {
+    const vx = target.x - player.x, vy = target.y - player.y, d = Math.hypot(vx, vy);
+    if (d < 6) target = null; else { dx = vx / d; dy = vy / d; }
+  }
+  const moving = !!(dx || dy) && !entering;
+  if (moving) {
+    const px = player.x, py = player.y;
+    player.x += dx * SPEED * dt;
+    player.y += dy * SPEED * dt;
+    if (Math.abs(dx) > 0.15) player.el.classList.toggle('left', dx < 0);
+    player.x = clamp(player.x, 50, W - 50);
+    player.y = clamp(player.y, WALL + 60, H - 30);
+    for (const s of slots) {
+      const vx = player.x - s.x, vy = player.y - s.y, d = Math.hypot(vx, vy);
+      if (d < BODY_R) {
+        const nx = d ? vx / d : 0, ny = d ? vy / d : 1;
+        player.x = s.x + nx * BODY_R; player.y = s.y + ny * BODY_R;
+      }
+    }
+    // atascado contra un obstáculo -> dejamos de perseguir el objetivo
+    if (target && Math.hypot(player.x - px, player.y - py) < SPEED * dt * 0.15) target = null;
+  }
+  player.el.classList.toggle('walking', moving);
+  player.el.style.left = player.x + 'px';
+  player.el.style.top = player.y + 'px';
+  player.el.style.zIndex = player.y | 0;
+
+  // ¿qué juego está cerca?
+  let best = null, bestD = NEAR_R;
+  for (const s of slots) {
+    const d = Math.hypot(player.x - s.x, player.y - (s.y + 40));
+    if (d < bestD) { best = s; bestD = d; }
+  }
+  if (best !== near) {
+    near?.el.classList.remove('near');
+    near = best;
+    if (near) {
+      near.el.classList.add('near');
+      $('#cardTitle').textContent = near.title;
+      $('#cardText').textContent = near.tagline;
+      card.style.setProperty('--c', near.color);
+      playBtn.disabled = !!near.soon;
+      playBtn.textContent = near.soon ? 'Pronto' : 'Jugar ▶';
+    }
+    card.classList.toggle('show', !!near);
+    document.body.classList.toggle('card-open', !!near);
+  }
+
+  // cámara suave
+  const { tx, ty } = camTarget();
+  if (!camReady) { camX = tx; camY = ty; camReady = true; }
+  camX += (tx - camX) * Math.min(1, dt * 6);
+  camY += (ty - camY) * Math.min(1, dt * 6);
+  world.style.transform = `translate(${-camX}px, ${-camY}px) scale(${scale})`;
+
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
