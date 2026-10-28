@@ -181,7 +181,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 /* =====================================================================
    CONFIGURACIÓN — para añadir un juego nuevo, añade un objeto a GAMES.
    - url:   dirección pública del juego
-   - prop:  'transit' | 'drives' | 'fiestective' | 'arcade' (máquina recreativa genérica)
+   - prop:  'transit' | 'drives' | 'fiestective' | 'colonies' | 'arcade' (máquina recreativa genérica)
    - color: color de la luz de su plataforma
    Los juegos se reparten solos por la superficie.
    ===================================================================== */
@@ -193,6 +193,8 @@ const GAMES = [
     url: 'https://fiestective.com/', prop: 'fiestective', color: '#ff4fb8' },
   { id: 'little-drives', title: 'Little Drives', tagline: 'Contrarreloj de coches: derrapa y bate a tu fantasma.',
     url: 'https://littledrives.com/', prop: 'drives', color: '#ff7a3d' },
+  { id: 'pequenas-colonias', title: 'Pequeñas Colonias', tagline: 'Funda núcleos, únelos con caminos y barcos, y mantén viva a tu gente.',
+    url: 'https://diegomaartinez.github.io/villages-game/', prop: 'colonies', color: '#e8b54a' },
   // { id: 'nuevo', title: 'Mi nuevo juego', tagline: '...', url: 'https://...', prop: 'arcade', color: '#7dff8a' },
 ];
 const SHOW_COMING_SOON = true;
@@ -892,6 +894,77 @@ const PROPS = {
     g.add(pivot);
     g.userData.spin = pivot;
     g.userData.spinSpeed = 1.3;
+    g.userData.noBob = true;
+    return g;
+  },
+
+
+  // Pequeñas Colonias: islita con su aldea y un barco de vela dando vueltas
+  colonies() {
+    const g = new THREE.Group();
+    const water = new THREE.Mesh(new THREE.CylinderGeometry(2.08, 2.08, 0.05, 64), std(0x2b6f96, { roughness: 0.12, metalness: 0.1 }));
+    water.position.y = 0.03;
+    const sand = new THREE.Mesh(new THREE.CylinderGeometry(1.32, 1.42, 0.12, 40), std(0xd8c58f, { roughness: 0.95 }));
+    sand.position.y = 0.07;
+    const grass = new THREE.Mesh(new THREE.CylinderGeometry(1.18, 1.26, 0.1, 40), std(0x5f9a45, { roughness: 0.9 }));
+    grass.position.y = 0.16;
+    g.add(water, sand, grass);
+    const wall = std(0xece2c8, { roughness: 0.8 }), roofM = std(0xa8462f, { roughness: 0.7 });
+    const house = (x, z, w, h, d, rot) => {
+      const hg = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wall);
+      body.position.y = h / 2;
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.75, h * 0.8, 4), roofM);
+      roof.rotation.y = Math.PI / 4;
+      roof.scale.set(w / Math.max(w, d), 1, d / Math.max(w, d));
+      roof.position.y = h + h * 0.4;
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.3, h * 0.3), emissive(0xffc77a, 1.8));
+      win.position.set(0, h * 0.5, d / 2 + 0.002);
+      hg.add(body, roof, win);
+      hg.position.set(x, 0.21, z);
+      hg.rotation.y = rot;
+      g.add(hg);
+    };
+    house(0, 0, 0.62, 0.38, 0.44, 0);                 // casa del núcleo
+    house(-0.62, 0.38, 0.28, 0.22, 0.24, 0.4);
+    house(0.6, 0.45, 0.3, 0.24, 0.26, -0.3);
+    house(-0.5, -0.5, 0.26, 0.2, 0.24, 0.9);
+    const tower = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.62, 0.14), wall);
+    tower.position.set(0.24, 0.52, -0.12);
+    const spire = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.24, 4), roofM);
+    spire.rotation.y = Math.PI / 4;
+    spire.position.set(0.24, 0.95, -0.12);
+    const flagPole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.4, 6), std(0x6b4a2b));
+    flagPole.position.set(-0.36, 0.6, 0.05);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.1), std(0xe8b54a, { side: THREE.DoubleSide }));
+    flag.position.set(-0.28, 0.74, 0.05);
+    const field = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.02, 0.3), std(0xd9b54a, { roughness: 0.9 }));
+    field.position.set(0.55, 0.22, -0.5);
+    field.rotation.y = 0.3;
+    g.add(tower, spire, flagPole, flag, field);
+    const leaf = std(0x2f6b3a, { roughness: 0.85 });
+    for (const [x, z, s] of [[-0.9, -0.1, 1], [-0.85, -0.3, 0.8], [0.95, 0.05, 0.9], [0.1, 0.85, 0.85], [-0.15, -0.9, 1], [0.85, -0.25, 0.7]]) {
+      const tr = new THREE.Mesh(new THREE.ConeGeometry(0.1 * s, 0.32 * s, 8), leaf);
+      tr.position.set(x, 0.21 + 0.16 * s, z);
+      g.add(tr);
+    }
+    const pivot = new THREE.Group();
+    const boat = new THREE.Group();
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.08, 0.14), std(0x7a4b2a, { roughness: 0.7 }));
+    hull.position.y = 0.08;
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.36, 6), std(0x5a3a20));
+    mast.position.y = 0.28;
+    const sailShape = new THREE.Shape();
+    sailShape.moveTo(0, 0); sailShape.lineTo(0, 0.3); sailShape.lineTo(0.2, 0.02); sailShape.lineTo(0, 0);
+    const sail = new THREE.Mesh(new THREE.ShapeGeometry(sailShape), std(0xf4efe2, { side: THREE.DoubleSide, roughness: 0.9 }));
+    sail.position.set(0.01, 0.13, 0);
+    boat.add(hull, mast, sail);
+    boat.position.set(1.72, 0.03, 0);
+    boat.rotation.y = Math.PI / 2;
+    pivot.add(boat);
+    g.add(pivot);
+    g.userData.spin = pivot;
+    g.userData.spinSpeed = 0.45;
     g.userData.noBob = true;
     return g;
   },
